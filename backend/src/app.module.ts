@@ -10,16 +10,6 @@ import { AppService } from './app.service';
     ConfigModule.forRoot({
       load: [getConfig],
     }),
-    /*
-    TypeOrmModule.forRootAsync({
-      imports: [ConfigModule],
-      useFactory: (configService: ConfigService) => ({
-        ...configService.get('database'),
-        autoLoadEntities: true,
-      }),
-      inject: [ConfigService],
-    }),
-    */
     KnexModule.forRootAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => ({
