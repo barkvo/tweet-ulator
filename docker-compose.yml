@@ -12,7 +12,7 @@ services:
       - postgres
     restart: unless-stopped
   postgres:
-    image: postgres:11.5-alpine
+    image: postgres:13-alpine
     volumes:
       - ./backend/postgres-data:/var/lib/postgresql/data
     ports:

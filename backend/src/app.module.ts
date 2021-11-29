@@ -1,9 +1,10 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { AuthModule } from '@/core/auth/auth.module';
+import { UsersModule } from '@/core/users/users.module';
 import { KnexModule } from 'nestjs-knex';
 import { getConfig } from './config/ormconfig';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
+import { PostsModule } from './modules/posts/posts.module';
 
 @Module({
   imports: [
@@ -19,8 +20,9 @@ import { AppService } from './app.service';
       }),
       inject: [ConfigService],
     }),
+    AuthModule,
+    UsersModule,
+    PostsModule,
   ],
-  controllers: [AppController],
-  providers: [AppService],
 })
 export class AppModule {}
