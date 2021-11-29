@@ -1,0 +1,11 @@
+.ant-layout {
+  height: 100%;
+}
+
+.ant-layout-content {
+  padding-top: 10vh;
+}
+
+h2 {
+  color: #fff!important;
+}

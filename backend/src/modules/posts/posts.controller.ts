@@ -11,7 +11,7 @@ import { Post as PostInterface, PostWithChildren, PostWithChildrenCount, PostId,
 const DEFAULT_LIMIT = 20;
 const DEFAULT_OFFSET = 0;
 
-@Controller('v1/posts')
+@Controller('api/v1/posts')
 export class PostsController {
   constructor(private readonly postsService: PostsService) {}
 
