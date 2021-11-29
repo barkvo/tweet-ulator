@@ -1,4 +1,3 @@
-import { HttpStatus } from '@nestjs/common';
 import { UserId } from '@/core/users/users.types';
 
 export enum PostOperation {
@@ -68,8 +67,6 @@ export type PostWithChildrenCount = Post & ChildrenPostCountData;
 export const isPostWithChildrenCount = (input: BasePostWithChildrenCount): input is PostWithChildrenCount =>
   isInitialPostData(input) || isReplyPostData(input);
 
-//
-
 export interface ChildrenPostData {
   childrenCount: number;
   children: ReadonlyArray<Post>;
@@ -77,45 +74,6 @@ export interface ChildrenPostData {
 
 export type PostWithChildren = Post & ChildrenPostData;
 
-//
-
 export type PostToCreate = Omit<Post, 'id' | 'createdAt'>;
-
-export type AddPostRequest = PostToCreate;
-
-export interface AddPostResponse {
-  status: HttpStatus.OK;
-  post: Post;
-}
-
-export interface GetPostsRequest {
-  limit?: number;
-  offset?: number;
-}
-
-// * возвращает сколько то вложенных постов для каждого поста
-export interface GetPostsResponse {
-  status: HttpStatus.OK;
-  limit: number;
-  offset: number;
-  posts: Post[];
-  totalPosts: number;
-}
-
-export interface GetReplyPostsRequest {
-  limit?: number;
-  offset?: number;
-  parentPostId: PostId;
-}
-
-// * возвращает посты, вычисляя для каждого значение childrenCount
-export interface GetReplyPostsResponse {
-  status: HttpStatus.OK;
-  limit: number;
-  offset: number;
-  parentPostId: PostId;
-  posts: Post[];
-  totalPosts: number;
-}
 
 export const POSTS_TABLE = 'posts';

@@ -18,7 +18,6 @@ export const transformAndValidateAsTE = <DTO>(
         ),
         TE.map(() => dtoInstance),
         TE.mapLeft((errors) => {
-          console.log(errors);
           return new Error(`DTO validation failed (${errors.length})`);
         }),
       );
