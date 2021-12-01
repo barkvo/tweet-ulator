@@ -6,7 +6,7 @@ import { pipe } from 'fp-ts/pipeable';
 import * as TE from 'fp-ts/TaskEither';
 import { CreatePostDTO, GetReplyPostsDTO, GetPostsDTO } from './posts.dto';
 import { PostsService } from './posts.service';
-import { Post as PostInterface, PostWithChildren, PostWithChildrenCount, PostId, InputPostData } from './posts.types';
+import { Post as PostInterface, ExternalPost, PostId, InputPostData } from './posts.types';
 
 const DEFAULT_LIMIT = 20;
 const DEFAULT_OFFSET = 0;
@@ -21,7 +21,8 @@ export class PostsController {
     limit: number;
     offset: number;
     totalPosts: number;
-    posts: ReadonlyArray<PostWithChildren>;
+    posts: ReadonlyArray<ExternalPost>;
+    childPosts: ReadonlyArray<ExternalPost>;
   }> {
     return eitherToPromise(
       pipe(
@@ -44,7 +45,7 @@ export class PostsController {
     offset: number;
     parentPostId: PostId;
     totalPosts: number;
-    posts: ReadonlyArray<PostWithChildrenCount>;
+    posts: ReadonlyArray<ExternalPost>;
   }> {
     return eitherToPromise(
       pipe(

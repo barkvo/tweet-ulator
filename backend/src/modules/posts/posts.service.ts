@@ -6,7 +6,7 @@ import * as Arr from 'fp-ts/Array';
 import * as O from 'fp-ts/Option';
 import { pipe } from 'fp-ts/pipeable';
 import * as TE from 'fp-ts/TaskEither';
-import { BasePostDTO, BasePostWithChildCountDTO } from './posts.dto';
+import { BasePostDTO, BaseExternalPostDTO } from './posts.dto';
 import {
   ALL_POST_FIELDS,
   Post,
@@ -16,9 +16,8 @@ import {
   isPost,
   InputPostData,
   PostId,
-  isPostWithChildrenCount,
-  PostWithChildrenCount,
-  PostWithChildren,
+  ExternalPost,
+  isExternalPost,
 } from './posts.types';
 
 const DEFAULT_CHILD_POSTS_TO_LOAD = 2;
@@ -65,7 +64,8 @@ export class PostsService {
       limit: number;
       offset: number;
       totalPosts: number;
-      posts: ReadonlyArray<PostWithChildren>;
+      posts: ReadonlyArray<ExternalPost>;
+      childPosts: ReadonlyArray<ExternalPost>;
     }
   > => {
     return pipe(
@@ -77,13 +77,19 @@ export class PostsService {
                 .raw(
                   `
                     select
-                      "id", "type", "value", "authorId", "createdAt",
-                      "operation", posts."parentPostId", C.count as "childrenCount" from posts
-                    join (
+                      posts."id", "type", "value", "authorId", "createdAt",
+                      "operation", posts."parentPostId",
+                      case when C.count is null then 0 else C.count END as "childrenCount",
+                      U.name as "authorName" from posts
+                    left join (
                       select posts."parentPostId", count(*) from posts
                       group by posts."parentPostId"
                     ) as C on posts."id" = C."parentPostId"
+                    join (
+                      select "name", "id" from users
+                    ) as U on posts."authorId" = U."id"
                     where posts."type" = '${PostType.Initial}'
+                    order by "createdAt" desc
                     limit ${limit} offset ${offset}
                   `,
                 )
@@ -99,8 +105,8 @@ export class PostsService {
             return Arr.sequence(TE.taskEither)(
               rawPosts.map((rawPost) => {
                 return pipe(
-                  transformAndValidateAsTE(BasePostWithChildCountDTO, rawPost),
-                  TE.filterOrElse(isPostWithChildrenCount, () => new Error('Is not a valid post type')),
+                  transformAndValidateAsTE(BaseExternalPostDTO, rawPost),
+                  TE.filterOrElse(isExternalPost, () => new Error('Is not a valid post type')),
                 );
               }),
             );
@@ -129,11 +135,28 @@ export class PostsService {
                     .map((p) => `'${p.id}'`)
                     .join(',')}) ORDER BY id
                   )
-                  select * from posts where id in (
+                  select
+                      posts."id", "type", "value", "authorId", "createdAt",
+                      "operation", posts."parentPostId",
+                      case when C.count is null then 0 else C.count END as "childrenCount",
+                      U.name as "authorName" from posts
+                  left join (
+                      select posts."parentPostId", count(*) from posts
+                      group by posts."parentPostId"
+                  ) as C on posts."id" = C."parentPostId"
+                  join (
+                      select "name", "id" from users
+                  ) as U on posts."authorId" = U."id"
+                  where posts."id" in (
                     select id from replies_num where replies_num.rnum <= ${DEFAULT_CHILD_POSTS_TO_LOAD}
-                  )`,
+                  )
+                  order by "createdAt" asc`,
                 )
-                .then((results) => results.rows);
+                .then((results) =>
+                  results.rows.map((r: Record<string, unknown>) => {
+                    return { ...r, childrenCount: r.childrenCount && parseInt(r.childrenCount as string, 10) };
+                  }),
+                );
             },
             (e) => new Error(`Failed to get posts (knex): ${e}`),
           ),
@@ -141,8 +164,8 @@ export class PostsService {
             return Arr.sequence(TE.taskEither)(
               rawPosts.map((rawPost) => {
                 return pipe(
-                  transformAndValidateAsTE(BasePostDTO, rawPost),
-                  TE.filterOrElse(isPost, () => new Error('Is not a valid post type')),
+                  transformAndValidateAsTE(BaseExternalPostDTO, rawPost),
+                  TE.filterOrElse(isExternalPost, () => new Error('Is not a valid post type')),
                 );
               }),
             );
@@ -152,12 +175,8 @@ export class PostsService {
               limit,
               offset,
               totalPosts,
-              posts: posts.map((post) => {
-                return {
-                  ...post,
-                  children: childPosts.filter((cp) => cp.parentPostId === post.id),
-                } as PostWithChildren;
-              }),
+              posts,
+              childPosts,
             };
           }),
         );
@@ -180,7 +199,7 @@ export class PostsService {
       offset: number;
       parentPostId: PostId;
       totalPosts: number;
-      posts: ReadonlyArray<PostWithChildrenCount>;
+      posts: ReadonlyArray<ExternalPost>;
     }
   > => {
     return pipe(
@@ -192,13 +211,19 @@ export class PostsService {
                 .raw(
                   `
                     select
-                      "id", "type", "value", "authorId", "createdAt",
-                      "operation", posts."parentPostId", C.count as "childrenCount" from posts
-                    join (
+                      posts."id", "type", "value", "authorId", "createdAt",
+                      "operation", posts."parentPostId",
+                      case when C.count is null then 0 else C.count END as "childrenCount",
+                      U.name as "authorName" from posts
+                    left join (
                       select posts."parentPostId", count(*) from posts
                       group by posts."parentPostId"
                     ) as C on posts."id" = C."parentPostId"
+                    join (
+                      select "name", "id" from users
+                    ) as U on posts."authorId" = U."id"
                     where posts."parentPostId" = '${parentPostId}'
+                    order by "createdAt" asc
                     limit ${limit} offset ${offset}
                   `,
                 )
@@ -214,8 +239,8 @@ export class PostsService {
             return Arr.sequence(TE.taskEither)(
               rawPosts.map((rawPost) => {
                 return pipe(
-                  transformAndValidateAsTE(BasePostWithChildCountDTO, rawPost),
-                  TE.filterOrElse(isPostWithChildrenCount, () => new Error('Is not a valid post type')),
+                  transformAndValidateAsTE(BaseExternalPostDTO, rawPost),
+                  TE.filterOrElse(isExternalPost, () => new Error('Is not a valid post type')),
                 );
               }),
             );

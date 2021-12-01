@@ -1,6 +1,6 @@
 import { UserId } from '@/core/users/users.types';
 import { IsDate, IsEnum, IsNumber, IsOptional, IsString } from 'class-validator';
-import { BasePost, PostId, PostOperation, PostType, BasePostData, BasePostWithChildrenCount } from './posts.types';
+import { BasePost, PostId, PostOperation, PostType, BasePostData, BaseExternalPost } from './posts.types';
 
 export class BasePostDTO implements BasePost {
   @IsString()
@@ -43,9 +43,12 @@ export class CreatePostDTO implements Omit<BasePostData, 'authorId'> {
   public parentPostId?: PostId;
 }
 
-export class BasePostWithChildCountDTO extends BasePostDTO implements BasePostWithChildrenCount {
+export class BaseExternalPostDTO extends BasePostDTO implements BaseExternalPost {
   @IsNumber()
   public childrenCount!: number;
+
+  @IsString()
+  public authorName!: string;
 }
 
 export class GetReplyPostsDTO {

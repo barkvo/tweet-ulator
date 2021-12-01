@@ -56,23 +56,17 @@ export type InputPostData = InitialPostData | ReplyPostData;
 export const isInputPost = (input: BasePostData): input is InputPostData =>
   isInitialPostData(input) || isReplyPostData(input);
 
-export interface ChildrenPostCountData {
+export interface ExternalPostData {
   childrenCount: number;
+  authorName: string;
 }
 
-export type BasePostWithChildrenCount = BasePost & ChildrenPostCountData;
+export type BaseExternalPost = BasePost & ExternalPostData;
 
-export type PostWithChildrenCount = Post & ChildrenPostCountData;
+export type ExternalPost = Post & ExternalPostData;
 
-export const isPostWithChildrenCount = (input: BasePostWithChildrenCount): input is PostWithChildrenCount =>
+export const isExternalPost = (input: BaseExternalPost): input is ExternalPost =>
   isInitialPostData(input) || isReplyPostData(input);
-
-export interface ChildrenPostData {
-  childrenCount: number;
-  children: ReadonlyArray<Post>;
-}
-
-export type PostWithChildren = Post & ChildrenPostData;
 
 export type PostToCreate = Omit<Post, 'id' | 'createdAt'>;
 
