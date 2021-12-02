@@ -1,16 +1,17 @@
-import { action, computed, observable } from "mobx";
-import { AuthStore as AuthStoreInterface, User } from "./auth.types";
+import { makeAutoObservable } from "mobx";
+import { AuthStoreInterface, User } from "./auth.types";
 
 export class AuthStore implements AuthStoreInterface {
-  @observable
+  constructor() {
+    makeAutoObservable(this);
+  }
+
   public user?: User;
 
-  @computed
   public get isAuthenticated() {
     return !!this.user;
   }
 
-  @action
   public setUser = (value?: User) => {
     this.user = value;
   };

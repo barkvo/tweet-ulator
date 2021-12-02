@@ -198,12 +198,48 @@ export class PostsService {
       limit: number;
       offset: number;
       parentPostId: PostId;
-      totalPosts: number;
+      parentPost: ExternalPost;
       posts: ReadonlyArray<ExternalPost>;
     }
   > => {
     return pipe(
       Apply.sequenceS(TE.taskEither)({
+        parentPost: pipe(
+          TE.tryCatch<Error, Record<string, unknown>>(
+            () => {
+              return this.knex
+                .raw(
+                  `
+                    select
+                      posts."id", "type", "value", "authorId", "createdAt",
+                      "operation", posts."parentPostId",
+                      case when C.count is null then 0 else C.count END as "childrenCount",
+                      U.name as "authorName" from posts
+                    left join (
+                      select posts."parentPostId", count(*) from posts
+                      group by posts."parentPostId"
+                    ) as C on posts."id" = C."parentPostId"
+                    join (
+                      select "name", "id" from users
+                    ) as U on posts."authorId" = U."id"
+                    where posts."id" = '${parentPostId}'
+                    limit 1
+                  `,
+                )
+                .then((results) => {
+                  const r = results.rows[0];
+                  return { ...r, childrenCount: r.childrenCount && parseInt(r.childrenCount as string, 10) };
+                });
+            },
+            (e) => new Error(`Failed to get posts (knex): ${e}`),
+          ),
+          TE.chain((rawPost) => {
+            return pipe(
+              transformAndValidateAsTE(BaseExternalPostDTO, rawPost),
+              TE.filterOrElse(isExternalPost, () => new Error('Is not a valid post type')),
+            );
+          }),
+        ),
         posts: pipe(
           TE.tryCatch<Error, ReadonlyArray<Record<string, unknown>>>(
             () => {
@@ -246,18 +282,8 @@ export class PostsService {
             );
           }),
         ),
-        totalPosts: TE.tryCatch<Error, number>(
-          () => {
-            return this.knex
-              .table(POSTS_TABLE)
-              .where('parentPostId', parentPostId)
-              .count()
-              .then((results) => results[0].count && parseInt(results[0].count as string, 10));
-          },
-          (e) => new Error(`Failed to count posts (knex): ${e}`),
-        ),
       }),
-      TE.map(({ posts, totalPosts }) => ({ limit, offset, parentPostId, posts, totalPosts })),
+      TE.map(({ posts, parentPost }) => ({ limit, offset, parentPostId, posts, parentPost })),
     );
   };
 }

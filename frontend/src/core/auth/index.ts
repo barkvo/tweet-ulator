@@ -2,8 +2,8 @@ import { pipe } from "fp-ts/pipeable";
 import * as TE from "fp-ts/TaskEither";
 import { HttpService, HttpStatusCode } from "../http";
 import { AuthStore } from "./auth.store";
-import { AccessToken, AuthStore as AuthStoreInterface, AuthModule, User, Login, Logout } from "./auth.types";
-import { getAuthorizedOnly, getUnauthorizedOnly } from "./RequireAuth.view";
+import { AccessToken, AuthStoreInterface, AuthModule, User, Login, Logout } from "./auth.types";
+import { AuthorizedOnly, UnauthorizedOnly } from "./RequireAuth.view";
 
 const setAuthHeader = ({ httpService, value }: { httpService: HttpService; value?: string }) => {
   httpService.setHeader("Authorization", value && `Bearer ${value}`);
@@ -33,8 +33,8 @@ export const buildModule = ({ httpService }: { httpService: HttpService }): Auth
     authStore,
     login: getLogin({ authStore, httpService }),
     logout: getLogout({ authStore, httpService }),
-    AuthorizedOnly: getAuthorizedOnly(authStore),
-    UnauthorizedOnly: getUnauthorizedOnly(authStore),
+    AuthorizedOnly,
+    UnauthorizedOnly,
   };
 };
 

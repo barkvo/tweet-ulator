@@ -1,5 +1,6 @@
 .ant-layout {
   height: 100%;
+  background-color: transparent!important;
 }
 
 .ant-layout-content {

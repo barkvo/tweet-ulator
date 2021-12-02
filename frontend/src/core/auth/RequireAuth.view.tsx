@@ -1,19 +1,23 @@
 import { observer } from "mobx-react";
 import { Navigate } from "react-router-dom";
-import { AuthStore, AuthorizedOnly, UnauthorizedOnly } from "./auth.types";
+import { AuthorizedOnlyInterface, UnauthorizedOnlyInterface } from "./auth.types";
 
-export const getAuthorizedOnly = (authStore: AuthStore): AuthorizedOnly => observer(
-  ({ children }: { children: JSX.Element }) => {
-    if (!authStore.isAuthenticated) {
+export const AuthorizedOnly: AuthorizedOnlyInterface = observer(
+  ({ children, isAuthenticated }) => {
+    if (!isAuthenticated) {
       return <Navigate to="/"/>;
     }
-    return children;
+    return (
+      <div>
+        {isAuthenticated && children}
+      </div>
+    );
   }
 );
 
-export const getUnauthorizedOnly = (authStore: AuthStore): UnauthorizedOnly => observer(
-  ({ children }: { children: JSX.Element }) => {
-    if (authStore.isAuthenticated) {
+export const UnauthorizedOnly: UnauthorizedOnlyInterface = observer(
+  ({ children, isAuthenticated }) => {
+    if (isAuthenticated) {
       return <Navigate to="/private"/>;
     }
     return children;

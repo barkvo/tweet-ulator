@@ -1,4 +1,5 @@
 import * as TE from "fp-ts/TaskEither";
+import { FC } from "react";
 
 export type UserId = string & { readonly type: unique symbol };
 
@@ -14,20 +15,20 @@ export type Login = (name: string) => TE.TaskEither<Error, void>;
 
 export type Logout = () => void;
 
-export type AuthorizedOnly = (i: { children: JSX.Element }) => JSX.Element;
+export type AuthorizedOnlyInterface = FC<{ children: JSX.Element; isAuthenticated: boolean; }>;
 
-export type UnauthorizedOnly = (i: { children: JSX.Element }) => JSX.Element;
+export type UnauthorizedOnlyInterface = FC<{ children: JSX.Element; isAuthenticated: boolean; }>;
 
-export interface AuthStore {
+export interface AuthStoreInterface {
   isAuthenticated: boolean;
   user?: User;
   setUser: (value?: User) => void;
 }
 
 export interface AuthModule {
-  authStore: AuthStore;
+  authStore: AuthStoreInterface;
   login: Login;
   logout: Logout;
-  AuthorizedOnly: AuthorizedOnly;
-  UnauthorizedOnly: UnauthorizedOnly;
+  AuthorizedOnly: AuthorizedOnlyInterface;
+  UnauthorizedOnly: UnauthorizedOnlyInterface;
 }

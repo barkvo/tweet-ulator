@@ -1,4 +1,4 @@
-import { Body, Controller, Get, HttpStatus, Post, Req, UseGuards, Query } from '@nestjs/common';
+import { Body, Controller, HttpStatus, Post, Req, UseGuards } from '@nestjs/common';
 import { JwtAuthGuard } from '@/core/auth/jwt-auth.guard';
 import { AuthenticatedRequest } from '@/core/auth/auth.types';
 import { eitherToPromise } from '@/core/fp-ts/eitherToPromise';
@@ -15,8 +15,9 @@ const DEFAULT_OFFSET = 0;
 export class PostsController {
   constructor(private readonly postsService: PostsService) {}
 
-  @Get()
-  public getPosts(@Query() getPostsData: GetPostsDTO): Promise<{
+  @Post('get-posts')
+  @UseGuards(JwtAuthGuard)
+  public getPosts(@Body() getPostsData: GetPostsDTO): Promise<{
     code: HttpStatus;
     limit: number;
     offset: number;
@@ -38,19 +39,20 @@ export class PostsController {
     );
   }
 
-  @Get('reply-posts')
-  public getReplyPosts(@Query() getReplyPostsData: GetReplyPostsDTO): Promise<{
+  @Post('get-reply-posts')
+  @UseGuards(JwtAuthGuard)
+  public getReplyPosts(@Body() getReplyPostsData: GetReplyPostsDTO): Promise<{
     code: HttpStatus;
     limit: number;
     offset: number;
     parentPostId: PostId;
-    totalPosts: number;
+    parentPost: ExternalPost;
     posts: ReadonlyArray<ExternalPost>;
   }> {
     return eitherToPromise(
       pipe(
         this.postsService.getReplyPosts({
-          limit: DEFAULT_LIMIT,
+          limit: 0,
           offset: DEFAULT_OFFSET,
           ...getReplyPostsData,
         }),
