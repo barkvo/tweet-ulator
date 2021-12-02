@@ -35,7 +35,7 @@ export const Posts: PostsComponentInterface = observer(({
         }
       ),
     )();
-  }, []);
+  }, [loadPostsInitial]);
   const loadMoreMainPosts = () => {
     pipe(
       loadMorePosts(),

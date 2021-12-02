@@ -19,6 +19,12 @@ import {
   ExternalPost,
   isExternalPost,
 } from './posts.types';
+import {
+  getInitialPostsWithChildrenCountAndAuthorName,
+  getFewChildrenPostsForEachParentIdWithChildrenCountAndAuthorName,
+  getParentPostWithChildrenCountAndAuthorName,
+  getChildrenPostsByParentIdWithChildrenCountAndAuthorName,
+} from './sql';
 
 const DEFAULT_CHILD_POSTS_TO_LOAD = 2;
 
@@ -73,31 +79,11 @@ export class PostsService {
         posts: pipe(
           TE.tryCatch<Error, ReadonlyArray<Record<string, unknown>>>(
             () => {
-              return this.knex
-                .raw(
-                  `
-                    select
-                      posts."id", "type", "value", "authorId", "createdAt",
-                      "operation", posts."parentPostId",
-                      case when C.count is null then 0 else C.count END as "childrenCount",
-                      U.name as "authorName" from posts
-                    left join (
-                      select posts."parentPostId", count(*) from posts
-                      group by posts."parentPostId"
-                    ) as C on posts."id" = C."parentPostId"
-                    join (
-                      select "name", "id" from users
-                    ) as U on posts."authorId" = U."id"
-                    where posts."type" = '${PostType.Initial}'
-                    order by "createdAt" desc
-                    limit ${limit} offset ${offset}
-                  `,
-                )
-                .then((results) =>
-                  results.rows.map((r: Record<string, unknown>) => {
-                    return { ...r, childrenCount: r.childrenCount && parseInt(r.childrenCount as string, 10) };
-                  }),
-                );
+              return this.knex.raw(getInitialPostsWithChildrenCountAndAuthorName({ limit, offset })).then((results) =>
+                results.rows.map((r: Record<string, unknown>) => {
+                  return { ...r, childrenCount: r.childrenCount && parseInt(r.childrenCount as string, 10) };
+                }),
+              );
             },
             (e) => new Error(`Failed to get posts (knex): ${e}`),
           ),
@@ -125,51 +111,42 @@ export class PostsService {
       }),
       TE.chain(({ posts, totalPosts }) => {
         return pipe(
-          TE.tryCatch<Error, ReadonlyArray<Record<string, unknown>>>(
+          posts.length,
+          O.fromPredicate((l) => l > 0),
+          O.fold<number, TE.TaskEither<Error, ExternalPost[]>>(
+            () => TE.right([]),
             () => {
-              return this.knex
-                .raw(
-                  `with replies_num as (
-                    SELECT id, row_number() OVER (PARTITION BY posts."parentPostId" ORDER BY id) AS rnum
-                    FROM posts where "type" = '${PostType.Reply}' and posts."parentPostId" in (${posts
-                    .map((p) => `'${p.id}'`)
-                    .join(',')}) ORDER BY id
-                  )
-                  select
-                      posts."id", "type", "value", "authorId", "createdAt",
-                      "operation", posts."parentPostId",
-                      case when C.count is null then 0 else C.count END as "childrenCount",
-                      U.name as "authorName" from posts
-                  left join (
-                      select posts."parentPostId", count(*) from posts
-                      group by posts."parentPostId"
-                  ) as C on posts."id" = C."parentPostId"
-                  join (
-                      select "name", "id" from users
-                  ) as U on posts."authorId" = U."id"
-                  where posts."id" in (
-                    select id from replies_num where replies_num.rnum <= ${DEFAULT_CHILD_POSTS_TO_LOAD}
-                  )
-                  order by "createdAt" asc`,
-                )
-                .then((results) =>
-                  results.rows.map((r: Record<string, unknown>) => {
-                    return { ...r, childrenCount: r.childrenCount && parseInt(r.childrenCount as string, 10) };
-                  }),
-                );
+              return pipe(
+                TE.tryCatch<Error, ReadonlyArray<Record<string, unknown>>>(
+                  () => {
+                    return this.knex
+                      .raw(
+                        getFewChildrenPostsForEachParentIdWithChildrenCountAndAuthorName({
+                          posts,
+                          childPostsToLoad: DEFAULT_CHILD_POSTS_TO_LOAD,
+                        }),
+                      )
+                      .then((results) =>
+                        results.rows.map((r: Record<string, unknown>) => {
+                          return { ...r, childrenCount: r.childrenCount && parseInt(r.childrenCount as string, 10) };
+                        }),
+                      );
+                  },
+                  (e) => new Error(`Failed to get posts (knex): ${e}`),
+                ),
+                TE.chain((rawPosts) => {
+                  return Arr.sequence(TE.taskEither)(
+                    rawPosts.map((rawPost) => {
+                      return pipe(
+                        transformAndValidateAsTE(BaseExternalPostDTO, rawPost),
+                        TE.filterOrElse(isExternalPost, () => new Error('Is not a valid post type')),
+                      );
+                    }),
+                  );
+                }),
+              );
             },
-            (e) => new Error(`Failed to get posts (knex): ${e}`),
           ),
-          TE.chain((rawPosts) => {
-            return Arr.sequence(TE.taskEither)(
-              rawPosts.map((rawPost) => {
-                return pipe(
-                  transformAndValidateAsTE(BaseExternalPostDTO, rawPost),
-                  TE.filterOrElse(isExternalPost, () => new Error('Is not a valid post type')),
-                );
-              }),
-            );
-          }),
           TE.map((childPosts) => {
             return {
               limit,
@@ -207,29 +184,10 @@ export class PostsService {
         parentPost: pipe(
           TE.tryCatch<Error, Record<string, unknown>>(
             () => {
-              return this.knex
-                .raw(
-                  `
-                    select
-                      posts."id", "type", "value", "authorId", "createdAt",
-                      "operation", posts."parentPostId",
-                      case when C.count is null then 0 else C.count END as "childrenCount",
-                      U.name as "authorName" from posts
-                    left join (
-                      select posts."parentPostId", count(*) from posts
-                      group by posts."parentPostId"
-                    ) as C on posts."id" = C."parentPostId"
-                    join (
-                      select "name", "id" from users
-                    ) as U on posts."authorId" = U."id"
-                    where posts."id" = '${parentPostId}'
-                    limit 1
-                  `,
-                )
-                .then((results) => {
-                  const r = results.rows[0];
-                  return { ...r, childrenCount: r.childrenCount && parseInt(r.childrenCount as string, 10) };
-                });
+              return this.knex.raw(getParentPostWithChildrenCountAndAuthorName({ parentPostId })).then((results) => {
+                const r = results.rows[0];
+                return { ...r, childrenCount: r.childrenCount && parseInt(r.childrenCount as string, 10) };
+              });
             },
             (e) => new Error(`Failed to get posts (knex): ${e}`),
           ),
@@ -244,25 +202,7 @@ export class PostsService {
           TE.tryCatch<Error, ReadonlyArray<Record<string, unknown>>>(
             () => {
               return this.knex
-                .raw(
-                  `
-                    select
-                      posts."id", "type", "value", "authorId", "createdAt",
-                      "operation", posts."parentPostId",
-                      case when C.count is null then 0 else C.count END as "childrenCount",
-                      U.name as "authorName" from posts
-                    left join (
-                      select posts."parentPostId", count(*) from posts
-                      group by posts."parentPostId"
-                    ) as C on posts."id" = C."parentPostId"
-                    join (
-                      select "name", "id" from users
-                    ) as U on posts."authorId" = U."id"
-                    where posts."parentPostId" = '${parentPostId}'
-                    order by "createdAt" asc
-                    limit ${limit} offset ${offset}
-                  `,
-                )
+                .raw(getChildrenPostsByParentIdWithChildrenCountAndAuthorName({ parentPostId, limit, offset }))
                 .then((results) =>
                   results.rows.map((r: Record<string, unknown>) => {
                     return { ...r, childrenCount: r.childrenCount && parseInt(r.childrenCount as string, 10) };

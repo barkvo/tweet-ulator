@@ -114,7 +114,7 @@ export const PostItem: FC<{
       }
       setIsReplyFormVisible(false);
     });
-  }, []);
+  }, [hideReplyFormSubject, post.id]);
   const resolvePostValueResult = resolvePostValue({
     post,
     previousValue,
@@ -160,15 +160,15 @@ export const PostItem: FC<{
     setIsReplyFormVisible(!isReplyFormVisible);
   };
   const operationContent = !!post.parentPostId && (
-    <p>
+    <>
       Operation: {post.operation}
       <br/>
-    </p>
+    </>
   );
   return (
     <Comment
       actions={[<span key="comment-nested-reply-to" onClick={toggleReplyForm}>Reply to</span>]}
-      author={<a>{post.authorName}</a>}
+      author={<span>{post.authorName}</span>}
       avatar={<Avatar src="https://joeschmoe.io/api/v1/random" alt={post.authorName} />}
       content={
         <p>
